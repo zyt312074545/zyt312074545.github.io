@@ -11,5 +11,11 @@ tags:
 
 # 2019
 
-- [ ] 《Flask Web 开发实战》
-- [ ] 《数据密集型应用系统设计》
+- ZYT
+    - Technology
+        - [ ] 《Flask Web 开发实战》
+        - [ ] 《数据密集型应用系统设计》
+    
+    - Economy and management
+        - [ ] 《微观经济学》
+        - [ ] 《宏观经济学》
