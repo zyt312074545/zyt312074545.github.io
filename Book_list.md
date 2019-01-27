@@ -17,7 +17,7 @@ tags:
         - [ ] 《数据密集型应用系统设计》
         - [ ] 《LINUX 私房菜》
 
-    - Machine Learing
+    - Machine Learning
         - [ ] 《DEEP LEARNING》
         - [ ] 《分布式机器学习》
     
