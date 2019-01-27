@@ -16,10 +16,20 @@ tags:
         - [ ] 《Flask Web 开发实战》
         - [ ] 《数据密集型应用系统设计》
         - [ ] 《LINUX 私房菜》
+        - [ ] 《RabbitMQ 实战》《kafka 权威指南》
+        - [ ] 《算法导论》
+        - [ ] 《高性能 MySQL》《MySQL 技术内幕》
+        - [ ] 《Java 编程思想》《Effective Java》
+        - [ ] 《Spring 实战》《Spring Boot 实战》《Spring 微服务实战》
+        - [ ] 《Kubernetes 权威指南》
+        - [ ] 《Elasticsearch 实战》
+        - [ ] 《UNIX 环境高级编程》
 
     - Machine Learning
         - [ ] 《DEEP LEARNING》
         - [ ] 《分布式机器学习》
+        - [ ] 《统计自然语言处理》
+        - [ ] 《人工智能》
     
     - Economy and management
         - [ ] 《伟大的博弈：华尔街金融帝国的崛起》
