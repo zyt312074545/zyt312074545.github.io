@@ -49,7 +49,7 @@ tags:
         - [x] 《Mysql 排错指南》
         - [x] 《Python 网络爬虫开发指南》
 
-    - Machine Learing
+    - Machine Learning
         - [x] 《机器学习》
         - [x] 《统计学习方法》
         - [x] 《Python 机器学习及实践》
