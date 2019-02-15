@@ -26,6 +26,8 @@ tags:
         - [ ] 《Spring 实战》
         - [ ] 《Spring Boot 实战》
         - [ ] 《Spring 微服务实战》
+        - [ ] 《DevOps 实践指南》
+        - [ ] 《Kubernetes in Action》
         - [ ] 《Kubernetes 权威指南》
         - [ ] 《Elasticsearch 实战》
         - [ ] 《UNIX 环境高级编程》
