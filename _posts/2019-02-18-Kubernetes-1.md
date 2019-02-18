@@ -63,8 +63,8 @@ tags:
 
 ```mermaid
     graph TD;
-        A(Create) --> B(Probe(健康检查));
-        B(Probe(健康检查)) --> C(Running);
+        A(Create) --> B(Probe);
+        B(Probe) --> C(Running);
         C(Running) --> D(Shutdown);
         D(Shutdown) --> E(Restart);
 ```
