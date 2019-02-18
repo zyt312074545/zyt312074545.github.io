@@ -67,7 +67,6 @@ tags:
         B(Probe(健康检查)) --> C(Running);
         C(Running) --> D(Shutdown);
         D(Shutdown) --> E(Restart);
-        E(Restart) --> A(Create);
 ```
 
 ## 2、Service
