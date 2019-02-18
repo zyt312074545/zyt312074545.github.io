@@ -31,3 +31,45 @@ tags:
     - `Kube Proxy`: 管理宿主机的子网管理
     - `Pause`: 在 `Pod` 中作为 `Linux 命名空间` 共享的基础，启用 `PID命名空间` 共享，并收集僵尸进程
 
+# 三、详解基本对象
+
+`Kubernetes` 中四大基本对象：
+
+- `Pod`
+- `Service`
+- `Volume`
+- `Namespace`
+
+## 1、Pod
+
+`Pod` 是 `Kubernetes` 集群中的基本单元，其中有以下基本概念：
+
+### (1) 容器
+
+每一个 `Kubernetes` 的 `Pod` 中存在两种不同的容器：
+
+- `InitContainer`: 初始化配置
+- `Container`: 应用容器
+
+### (2) 卷
+
+每一个 `Pod` 中的容器可以通过卷共享文件目录，卷能够持久化存储数据，且当 `Pod` 出现故障或者滚动更新时，卷中的数据不会清除。
+
+### (3) 网络
+
+同一个 `Pod` 中的多个容器共享网络栈，即多个容器可以通过 `localhost` 互相访问到彼此的端口和服务。同一个 `Pod` 中的所有容器连接到同一个网络设备，即 `pause` 容器。
+
+### (4) 生命周期
+
+```mermaid
+    graph TD;
+        A(Create) --> B(Probe(健康检查));
+        B(Probe(健康检查)) --> C(Running);
+        C(Running) --> D(Shutdown);
+        D(Shutdown) --> E(Restart);
+        E(Restart) --> A(Create);
+```
+
+## 2、Service
+
+由于 `Pod` 存在服务漂移的可能性，如果用 `PodIP` 对外提供服务，就很有可能随着服务漂移而无法提供服务，所以建立了 `Service` 的概念，为提供同一服务的 `Pod` 建立一个抽象。
