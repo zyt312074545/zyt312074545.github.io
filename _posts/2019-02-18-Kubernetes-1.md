@@ -168,5 +168,5 @@ spec:
 
 维持一组 `Pod` 副本的运行，保证一定数量的 `Pod` 在集群中正常运行。
 
-常用 [`Deployments`](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) 替换 `[ReplicaSet](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/)`，`Deployment` 在 `ReplicaSet` 实现了滚动升级。
+常用 [`Deployments`](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) 替换 [`ReplicaSet`](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/)，`Deployment` 在 `ReplicaSet` 实现了滚动升级。
 
