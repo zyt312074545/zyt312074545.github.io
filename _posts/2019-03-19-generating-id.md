@@ -37,6 +37,7 @@ The IDs are made up of the following components:
 
 ### Snowflake 的各种语言实现
 
+#### python
 ```python
 """
 ┌─┐┌┐┌┌─┐┬ ┬┌─┐┬  ┌─┐┬┌─┌─┐
@@ -132,6 +133,7 @@ if __name__ == "__main__":
     print(Snowflake(0).generate())
 ```
 
+#### golang
 ```go
 package main
 
@@ -161,6 +163,7 @@ func main() {
 }
 ```
 
+#### java
 ```java
 import java.net.NetworkInterface;
 import java.security.SecureRandom;
