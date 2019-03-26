@@ -37,6 +37,8 @@ The IDs are made up of the following components:
 
 ### Snowflake 的各种语言实现
 
+表示 timestamp 的41位，可以支持我们使用69年。当然，我们的时间毫秒计数不会真的从 1970 年开始记，那样我们的系统跑到 2039/9/7 23:47:35 就不能用了，所以这里的 timestamp 实际上只是相对于某个时间的增量，比如我们的系统上线是 2019-01-01，那么我们可以把这个 timestamp 当作是从 2019-01-01 00:00:00.000的偏移量。
+
 #### python
 ```python
 """
