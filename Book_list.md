@@ -16,7 +16,7 @@ tags:
         - [x] 《Flask Web 开发实战》
         - [ ] 《数据密集型应用系统设计》
         - [ ] 《LINUX 私房菜》
-        - [ ] 《RabbitMQ 实战》
+        - [x] 《RabbitMQ 实战》
         - [ ] 《kafka 权威指南》
         - [ ] 《算法导论》
         - [ ] 《高性能 MySQL》
