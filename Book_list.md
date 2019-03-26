@@ -13,7 +13,7 @@ tags:
 
 - ZYT
     - Technology
-        - [ ] 《Flask Web 开发实战》
+        - [x] 《Flask Web 开发实战》
         - [ ] 《数据密集型应用系统设计》
         - [ ] 《LINUX 私房菜》
         - [ ] 《RabbitMQ 实战》
