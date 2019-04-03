@@ -234,7 +234,7 @@ fluentd-elasticsearch-kvtwj   1/1     Running   0          19h
         E(Queue) --> C(Worker);
         E(Queue) --> D(Worker);
         F(DaemonSet Informer) --> E(Queue);
-        F(ControllerRevision) --> E(Queue);
-        F(Pod Informer) --> E(Queue);
-        F(Node Informer) --> E(Queue);
+        G(ControllerRevision) --> E(Queue);
+        H(Pod Informer) --> E(Queue);
+        I(Node Informer) --> E(Queue);
 ```
