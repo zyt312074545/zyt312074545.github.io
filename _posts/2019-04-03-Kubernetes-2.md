@@ -17,7 +17,7 @@ tags:
 
 例如如下的部署文件：
 
-```
+``` yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -43,7 +43,7 @@ spec:
 
 当我们在 `Kubernetes` 集群中创建上述 `Deployment` 对象时，它不只会创建 `Deployment` 资源，还会创建另外的 `ReplicaSet` 以及三个 `Pod` 对象：
 
-```
+``` bash
 $ kubectl get deployments.apps
 NAME               READY     UP-TO-DATE   AVAILABLE   AGE
 nginx-deployment   3/3       3            3           6m55s
@@ -80,4 +80,90 @@ nginx-deployment-76bf4969df-m4pkg   1/1       Running   0          7m43s
         A(Deployment Informer) --> |Add/Update/Delete| D(DeploymentController);
         B(ReplicaSet Informer) --> |Add/Update/Delete| D(DeploymentController);
         C(Pod Informer) --> |Delete| D(DeploymentController);
+```
+
+# StatefulSet
+
+## 1. 简介
+
+`StatefulSet` 是用于管理有状态应用的工作负载对象，不仅能管理 `Pod` 的对象，还它能够保证这些 `Pod` 的顺序性和唯一性。
+
+例如如下的部署文件：
+
+``` yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web
+spec:
+  serviceName: "nginx"
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: k8s.gcr.io/nginx-slim:0.8
+        volumeMounts:
+        - name: www
+          mountPath: /usr/share/nginx/html
+  volumeClaimTemplates:
+  - metadata:
+      name: www
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+```
+
+如果我们在 `Kubernetes` 集群中创建如上所示的 `StatefulSet` 对象，会得到以下结果：
+
+``` bash
+$ kubectl get statefulsets.apps
+kNAME   READY   AGE
+web    2/2     2m27s
+
+$ kubectl get pods
+NAME    READY   STATUS    RESTARTS   AGE
+web-0   1/1     Running   0          2m31s
+web-1   1/1     Running   0          105s
+
+$ kubectl get persistentvolumes
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM               STORAGECLASS       REASON   AGE
+pvc-19ef374f-39d1-11e9-b870-9efb418608da   1Gi        RWO            Delete           Bound    default/www-web-1   do-block-storage            21m
+pvc-fe53d5f7-39d0-11e9-b870-9efb418608da   1Gi        RWO            Delete           Bound    default/www-web-0   do-block-storage            21m
+
+$ kubectl get persistentvolumeclaims
+NAME        STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS       AGE
+www-web-0   Bound    pvc-fe53d5f7-39d0-11e9-b870-9efb418608da   1Gi        RWO            do-block-storage   21m
+www-web-1   Bound    pvc-19ef374f-39d1-11e9-b870-9efb418608da   1Gi        RWO            do-block-storage   21m
+```
+
+两个 `Pod` 对象名中包含了它们的序列号，该序列号会在 `StatefulSet` 存在的时间内保持不变，哪怕 `Pod` 被重启或者重新调度，也不会出现任何的改变。
+
+```mermaid
+    graph TD;
+        A(StatefulSet) --> B(Pod1);
+        A(StatefulSet) --> C(Pod2);
+        B(Pod1) --> D(PersistentVolume1);
+        D(PersistentVolume1) --> E(PersistentVolumeClaim1);
+        C(Pod2) --> F(PersistentVolume2);
+        F(PersistentVolume2) --> G(PersistentVolumeClaim2);
+```
+
+## 2. StatefulSetController
+
+`StatefulSetController` 会同时从 `PodInformer` 和 `ReplicaSetInformer` 中接受增删改事件并将事件推送到队列中。
+
+```mermaid
+    graph TD;
+        A(Pod Informer) --> |Add/Update/Delete| C(StatefulSetController);
+        B(ReplicaSet Informer) --> |Add/Update/Delete| C(StatefulSetController);
+        C(StatefulSetController) --> |Add StatefulSet| D(queue);
 ```
