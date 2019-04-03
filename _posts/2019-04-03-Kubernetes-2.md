@@ -167,3 +167,74 @@ www-web-1   Bound    pvc-19ef374f-39d1-11e9-b870-9efb418608da   1Gi        RWO  
         B(ReplicaSet Informer) --> |Add/Update/Delete| C(StatefulSetController);
         C(StatefulSetController) --> |Add StatefulSet| D(queue);
 ```
+
+# DaemonSet
+
+## 1. 简介
+
+`DaemonSet` 可以保证集群中所有的或者部分的节点都能够运行同一份 `Pod` 副本，每当有新的节点被加入到集群时，`Pod` 就会在目标的节点上启动，如果节点被从集群中剔除，节点上的 `Pod` 也会被垃圾收集器清除；`DaemonSet` 的作用就像是计算机中的守护进程，它能够运行集群存储、日志收集和监控等『守护进程』，这些服务一般是集群中必备的基础服务。
+
+例如如下的部署文件：
+
+``` yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd-elasticsearch
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: fluentd-elasticsearch
+  template:
+    metadata:
+      labels:
+        name: fluentd-elasticsearch
+    spec:
+      containers:
+      - name: fluentd-elasticsearch
+        image: k8s.gcr.io/fluentd-elasticsearch:1.20
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+```
+
+在 `Kubernetes` 集群的 `kube-system` 命名空间中创建 `DaemonSet` 资源并在所有的节点上创建新的 `Pod`：
+
+``` bash
+$ kubectl get daemonsets.apps fluentd-elasticsearch --namespace kube-system
+NAME                    DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+fluentd-elasticsearch   1         1         1       1            1           <none>          19h
+
+$ kubectl get pods --namespace kube-system --label name=fluentd-elasticsearch
+NAME                          READY   STATUS    RESTARTS   AGE
+fluentd-elasticsearch-kvtwj   1/1     Running   0          19h
+```
+
+## 2. DaemonSetsController
+
+用于管理 `DaemonSet` 的控制器是 `DaemonSetsController`，该控制器会监听 `DaemonSet`、`ControllerRevision [版本信息]`、`Pod` 和 `Node` 资源的变动。
+
+```mermaid
+    graph TD;
+        A(DaemonSetsController) --> B(Worker);
+        A(DaemonSetsController) --> C(Worker);
+        A(DaemonSetsController) --> D(Worker);
+        E(Queue) --> B(Worker);
+        E(Queue) --> C(Worker);
+        E(Queue) --> D(Worker);
+        F(DaemonSet Informer) --> E(Queue);
+        F(ControllerRevision) --> E(Queue);
+        F(Pod Informer) --> E(Queue);
+        F(Node Informer) --> E(Queue);
+```
