@@ -226,10 +226,10 @@ fluentd-elasticsearch-kvtwj   1/1     Running   0          19h
 用于管理 `DaemonSet` 的控制器是 `DaemonSetsController`，该控制器会监听 `DaemonSet`、`ControllerRevision [版本信息]`、`Pod` 和 `Node` 资源的变动。
 
 ```mermaid
-    graph TD;
-        A(DaemonSetsController) --> B(Worker);
-        A(DaemonSetsController) --> C(Worker);
-        A(DaemonSetsController) --> D(Worker);
+    graph LR;
+        A(DaemonSetsController) -.-> B(Worker);
+        A(DaemonSetsController) -.-> C(Worker);
+        A(DaemonSetsController) -.-> D(Worker);
         E(Queue) --> B(Worker);
         E(Queue) --> C(Worker);
         E(Queue) --> D(Worker);
