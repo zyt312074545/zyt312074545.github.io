@@ -227,14 +227,14 @@ fluentd-elasticsearch-kvtwj   1/1     Running   0          19h
 
 ```mermaid
     graph LR;
-        A(DaemonSetsController) -.-> B(Worker);
-        A(DaemonSetsController) -.-> C(Worker);
-        A(DaemonSetsController) -.-> D(Worker);
-        E(Queue) --> B(Worker);
-        E(Queue) --> C(Worker);
-        E(Queue) --> D(Worker);
-        F(DaemonSet Informer) --> E(Queue);
-        G(ControllerRevision) --> E(Queue);
-        H(Pod Informer) --> E(Queue);
-        I(Node Informer) --> E(Queue);
+        DaemonSetsController -.-> Worker;
+        DaemonSetsController -.-> Worker;
+        DaemonSetsController -.-> Worker;
+        Queue --> Worker;
+        Queue --> Worker;
+        Queue --> Worker;
+        DaemonSet Informer --> Queue;
+        ControllerRevision --> Queue;
+        Pod Informer --> Queue;
+        Node Informer --> Queue;
 ```
