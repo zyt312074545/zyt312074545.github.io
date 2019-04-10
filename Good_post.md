@@ -18,5 +18,6 @@ tags:
 |Docker & Kubernetes      |   [Kubernetes Networking Model](https://itnext.io/an-illustrated-guide-to-kubernetes-networking-part-1-d1ede3322727)    |  Kubernetes 网络|
 |Docker & Kubernetes      |   [Docker Networking Model](https://success.docker.com/article/networking)    |  Docker 网络|
 |Docker & Kubernetes      |   [Containerd integration in Docker architecture](https://medium.com/devopslinks/docker-containerd-standalone-runtimes-heres-what-you-should-know-b834ef155426)    |  Docker 容器 |
+|Docker & Kubernetes      |   [Docker Tips : about /var/run/docker.sock](https://medium.com/lucjuggery/about-var-run-docker-sock-3bfd276e12fd)    |  Docker.sock 的作用：docker daemon 默认监听的 unix socket，尝被用作容器和 daemon 之间进行连接的载体 |
 
 | Design Pattern      |   [缓存更新的套路](https://coolshell.cn/articles/17416.html)    |  常用缓存更新方式 |
