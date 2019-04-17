@@ -22,3 +22,7 @@ tags:
 多个 `Kubernetes` 节点之间的通信：
 
 ![Docker Networking](/img/kubernetesNet.gif)
+
+完整的多节点通信：
+
+![Multi Node Networking](/img/KubernetesMultiNode.png)
