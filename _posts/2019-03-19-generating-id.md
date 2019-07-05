@@ -163,7 +163,7 @@ if __name__ == "__main__":
 ```
 
 #### golang
-```go
+```
 package main
 
 import (
