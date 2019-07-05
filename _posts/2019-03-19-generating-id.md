@@ -16,6 +16,16 @@ tags:
 
 UUIDs are 128-bit hexadecimal numbers that are globally unique. The chances of the same UUID getting generated twice is negligible.
 
+优点：
+
+- 性能非常高：本地生成，没有网络消耗。
+
+缺点：
+
+- 不易于存储：UUID太长，16字节128位，通常以36长度的字符串表示，很多场景不适用。
+- 信息不安全：基于MAC地址生成UUID的算法可能会造成MAC地址泄露。
+- ID不适用作为DB主键。
+
 ## MongoDB's ObjectId
 
 MongoDB’s ObjectIDs are 12-byte (96-bit) hexadecimal numbers that are made up of -
@@ -34,6 +44,23 @@ The IDs are made up of the following components:
 - Epoch timestamp in millisecond precision - 41 bits (gives us 69 years with a custom epoch)
 - Configured machine id - 10 bits (gives us up to 1024 machines)
 - Sequence number - 12 bits (A local counter per machine that rolls over every 4096)
+
+**理论上snowflake方案的QPS约为409.6w/s**
+
+优点：
+
+- 毫秒数在高位，自增序列在低位，整个ID都是趋势递增的。
+- 不依赖数据库等第三方系统，以服务的方式部署，稳定性更高，生成ID的性能也是非常高的。
+- 可以根据自身业务特性分配bit位，非常灵活。
+
+缺点：
+
+- 强依赖机器时钟，如果机器上时钟回拨，会导致发号重复或者服务会处于不可用状态。
+
+可行的解决方案：
+
+1. 利用 ZooKeeper 等协调服务管理时间
+2. 关闭 NTP 服务
 
 ### Snowflake 的各种语言实现
 
