@@ -23,6 +23,12 @@ tags:
 
 虚拟机安装镜像选择 Pie image, 不要安装 Q image
 
+# 4. 启动虚拟机 /dev/kvm 缺少权限
+
+```
+$ sudo chmod 777 /dev/kvm
+```
+
 # 其他问题
 
 执行 `flutter doctor` 基本能够解决。
