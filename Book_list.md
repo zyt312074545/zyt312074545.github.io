@@ -9,28 +9,30 @@ catalog: true                       # 是否归档
 tags:
 ---
 
-# 2019
+# 2020
 
 - ZYT
     - Technology
-        - [x] 《Flask Web 开发实战》
+        - [ ] 《剑指 Offer》
+        - [ ] 《Go 语言学习笔记》
+        - [ ] 《Go 语言高级编程》
+        - [ ] 《Rust 编程之道》
         - [ ] 《数据密集型应用系统设计》
-        - [ ] 《LINUX 私房菜》
-        - [x] 《RabbitMQ 实战》
-        - [ ] 《kafka 权威指南》
         - [ ] 《算法导论》
         - [ ] 《高性能 MySQL》
         - [ ] 《MySQL 技术内幕》
+        - [ ] 《Kubernetes in Action》
+        - [ ] 《Kubernetes 权威指南》
+        - [ ] 《重构》
+        - [ ] 《深入理解计算机系统》
+        - [ ] 《UNIX 环境高级编程》
+        - [ ] 《Elasticsearch 实战》
+        - [ ] 《kafka 权威指南》
         - [ ] 《Java 编程思想》
         - [ ] 《Effective Java》
         - [ ] 《Spring 实战》
         - [ ] 《Spring Boot 实战》
         - [ ] 《Spring 微服务实战》
-        - [x] 《DevOps 实践指南》
-        - [ ] 《Kubernetes in Action》
-        - [ ] 《Kubernetes 权威指南》
-        - [ ] 《Elasticsearch 实战》
-        - [ ] 《UNIX 环境高级编程》
 
     - Machine Learning
         - [ ] 《DEEP LEARNING》
@@ -38,6 +40,19 @@ tags:
         - [ ] 《统计自然语言处理》
         - [ ] 《人工智能》
     
+    - Economy and management
+        - [ ] 《微观经济学》
+        - [ ] 《宏观经济学》
+
+# 2019
+
+- ZYT
+    - Technology
+        - [x] 《Flask Web 开发实战》
+        - [x] 《LINUX 私房菜》
+        - [x] 《RabbitMQ 实战》
+        - [x] 《DevOps 实践指南》
+
     - Economy and management
         - [x] 《伟大的博弈：华尔街金融帝国的崛起》
         - [x] 《门口的野蛮人》
@@ -49,9 +64,7 @@ tags:
         - [x] 《变革中国》
         - [x] 《永不放弃》
         - [x] 《万历十五年》
-        - [ ] 《薛兆丰经济学讲义》
-        - [ ] 《微观经济学》
-        - [ ] 《宏观经济学》
+        - [x] 《薛兆丰经济学讲义》
 
 - LRN
     - [x] 《围城》
