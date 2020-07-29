@@ -114,4 +114,4 @@ for node_ip in ${NODE_IPS[@]}
         ssh root@${node_ip} "mkdir -p /etc/kubernetes/cert"
         scp ca*.pem ca-config.json root@${node_ip}:/etc/kubernetes/cert
     done
-``
+```
