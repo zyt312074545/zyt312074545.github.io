@@ -4,7 +4,7 @@ title:      二进制部署 Kubernetes （Ubuntu 18.04 Server）        # 标题
 subtitle:   第一节：初始化系统和全局变量     #副标题
 date:       2020-07-29              # 时间
 author:     ZYT                     # 作者
-header-img: img/Kubernetes.png   #这篇文章标题背景图片
+header-img: img/kubernetes.png   #这篇文章标题背景图片
 catalog: true                       # 是否归档
 tags:
     - Kubernetes
