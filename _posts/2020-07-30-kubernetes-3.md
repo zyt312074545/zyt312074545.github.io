@@ -2,7 +2,7 @@
 layout:     post                    # 使用的布局（不需要改）
 title:      二进制部署 Kubernetes （Ubuntu 18.04 Server）        # 标题 
 subtitle:   第三节：安装和配置 kubectl     #副标题
-date:       2020-07-29              # 时间
+date:       2020-07-30              # 时间
 author:     ZYT                     # 作者
 header-img: img/kubernetes.png   #这篇文章标题背景图片
 catalog: true                       # 是否归档
