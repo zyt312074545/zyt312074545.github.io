@@ -78,9 +78,9 @@ EOF
 
 ```
 cd /opt/k8s/work
-cfssl gencert -ca=/opt/k8s/work/ca.pem \
-    -ca-key=/opt/k8s/work/ca-key.pem \
-    -config=/opt/k8s/work/ca-config.json \
+cfssl gencert -ca=/etc/kubernetes/cert/ca.pem \
+    -ca-key=/etc/kubernetes/cert/ca-key.pem \
+    -config=/etc/kubernetes/cert/ca-config.json \
     -profile=kubernetes etcd-csr.json | cfssljson -bare etcd
 ls etcd*pem
 ```
@@ -94,7 +94,7 @@ for node_ip in ${NODE_IPS[@]}
     do
         echo ">>> ${node_ip}"
         ssh root@${node_ip} "mkdir -p /etc/etcd/cert"
-        scp etcd*.pem root@${node_ip}:/etc/etcd/cert/
+        scp etcd* root@${node_ip}:/etc/etcd/cert/
     done
 ```
 

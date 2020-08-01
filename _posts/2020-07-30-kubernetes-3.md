@@ -60,9 +60,9 @@ EOF
 
 ```
 cd /opt/k8s/work
-cfssl gencert -ca=/opt/k8s/work/ca.pem \
-  -ca-key=/opt/k8s/work/ca-key.pem \
-  -config=/opt/k8s/work/ca-config.json \
+cfssl gencert -ca=/etc/kubernetes/cert/ca.pem \
+  -ca-key=/etc/kubernetes/cert/ca-key.pem \
+  -config=/etc/kubernetes/cert/ca-config.json \
   -profile=kubernetes admin-csr.json | cfssljson -bare admin
 ls admin*
 ```
@@ -79,7 +79,7 @@ source /opt/k8s/bin/environment.sh
 
 # 设置集群参数
 kubectl config set-cluster kubernetes \
-  --certificate-authority=/opt/k8s/work/ca.pem \
+  --certificate-authority=/etc/kubernetes/cert/ca.pem \
   --embed-certs=true \
   --server=https://${NODE_IPS[0]}:6443 \
   --kubeconfig=kubectl.kubeconfig

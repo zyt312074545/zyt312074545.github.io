@@ -51,8 +51,7 @@ cat > kubernetes-csr.json <<EOF
     "kubernetes.default",
     "kubernetes.default.svc",
     "kubernetes.default.svc.cluster",
-    "kubernetes.default.svc.cluster.local.",
-    "kubernetes.default.svc.${CLUSTER_DNS_DOMAIN}."
+    "kubernetes.default.svc.cluster.local."
   ],
   "key": {
     "algo": "rsa",
@@ -74,9 +73,9 @@ EOF
 生成证书和私钥：
 
 ```
-cfssl gencert -ca=/opt/k8s/work/ca.pem \
-  -ca-key=/opt/k8s/work/ca-key.pem \
-  -config=/opt/k8s/work/ca-config.json \
+cfssl gencert -ca=/etc/kubernetes/cert/ca.pem \
+  -ca-key=/etc/kubernetes/cert/ca-key.pem \
+  -config=/etc/kubernetes/cert/ca-config.json \
   -profile=kubernetes kubernetes-csr.json | cfssljson -bare kubernetes
 ls kubernetes*pem
 ```
@@ -87,8 +86,7 @@ ls kubernetes*pem
 for node_ip in ${NODE_IPS[@]}
     do
         echo ">>> ${node_ip}"
-        ssh root@${node_ip} "mkdir -p /etc/kubernetes/cert"
-        scp kubernetes*.pem root@${node_ip}:/etc/kubernetes/cert/
+        scp kubernetes* root@${node_ip}:/etc/kubernetes/cert/
     done
 ```
 
@@ -371,7 +369,7 @@ ls proxy-client*.pem
 for node_ip in ${NODE_IPS[@]}
     do
         echo ">>> ${node_ip}"
-        scp proxy-client*.pem root@${node_ip}:/etc/kubernetes/cert/
+        scp proxy-client* root@${node_ip}:/etc/kubernetes/cert/
     done
 ```
 
