@@ -12,17 +12,17 @@ tags:
 
 ## 一、集群规划
 
-- master: 192.168.31.193
-- node1: 192.168.31.148
-- node2: 192.168.31.121
+- master: 192.168.31.44
+- node1: 192.168.31.136
+- node2: 192.168.31.90
 
 每台机器的 `/etc/hosts` 文件中添加主机名和 IP 的对应关系：
 
 ```
 cat >> /etc/hosts <<EOF
-192.168.31.193 master
-192.168.31.148 node1
-192.168.31.121 node2
+192.168.31.44 master
+192.168.31.136 node1
+192.168.31.90 node2
 EOF
 ```
 
@@ -140,16 +140,16 @@ environment.sh 内容，根据自己机器情况进行修改：
 export ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
 
 # 集群各机器 IP 数组
-export NODE_IPS=(192.168.31.193 192.168.31.148 192.168.31.121)
+export NODE_IPS=(192.168.31.44 192.168.31.136 192.168.31.90)
 
 # 集群各 IP 对应的主机名数组
 export NODE_NAMES=(master node1 node2)
 
 # etcd 集群服务地址列表
-export ETCD_ENDPOINTS="https://192.168.31.193:2379,https://192.168.31.148:2379,https://192.168.31.121:2379"
+export ETCD_ENDPOINTS="https://192.168.31.44:2379,https://192.168.31.136:2379,https://192.168.31.90:2379"
 
 # etcd 集群间通信的 IP 和端口
-export ETCD_NODES="master=https://192.168.31.193:2380,node1=https://192.168.31.148:2380,node2=https://192.168.31.121:2380"
+export ETCD_NODES="master=https://192.168.31.44:2380,node1=https://192.168.31.136:2380,node2=https://192.168.31.90:2380"
 
 # kube-apiserver 的反向代理(kube-nginx)地址端口
 export KUBE_APISERVER="https://127.0.0.1:8443"

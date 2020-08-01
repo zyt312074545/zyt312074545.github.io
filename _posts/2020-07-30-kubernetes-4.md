@@ -51,9 +51,9 @@ cat > etcd-csr.json <<EOF
   "CN": "etcd",
   "hosts": [
     "127.0.0.1",
-    "192.168.31.193",
-    "192.168.31.148",
-    "192.168.31.121"
+    "192.168.31.44",
+    "192.168.31.136",
+    "192.168.31.90"
   ],
   "key": {
     "algo": "rsa",
@@ -241,12 +241,12 @@ for node_ip in ${NODE_IPS[@]}
 预期输出：
 
 ```
->>> 192.168.31.193
-https://192.168.31.193:2379 is healthy: successfully committed proposal: took = 13.562105ms
->>> 192.168.31.148
-https://192.168.31.148:2379 is healthy: successfully committed proposal: took = 8.474169ms
->>> 192.168.31.121
-https://192.168.31.121:2379 is healthy: successfully committed proposal: took = 9.019993ms
+>>> 192.168.31.44
+https://192.168.31.44:2379 is healthy: successfully committed proposal: took = 13.562105ms
+>>> 192.168.31.136
+https://192.168.31.136:2379 is healthy: successfully committed proposal: took = 8.474169ms
+>>> 192.168.31.90
+https://192.168.31.90:2379 is healthy: successfully committed proposal: took = 9.019993ms
 ```
 
 ## 8. 查看当前的 leader
@@ -266,8 +266,8 @@ source /opt/k8s/bin/environment.sh
 +-----------------------------+------------------+---------+---------+-----------+------------+-----------+------------+--------------------+--------+
 |          ENDPOINT           |        ID        | VERSION | DB SIZE | IS LEADER | IS LEARNER | RAFT TERM | RAFT INDEX | RAFT APPLIED INDEX | ERRORS |
 +-----------------------------+------------------+---------+---------+-----------+------------+-----------+------------+--------------------+--------+
-| https://192.168.31.193:2379 | 3c0c4e2d324c0b39 |  3.4.10 |   20 kB |      true |      false |        40 |          9 |                  9 |        |
-| https://192.168.31.148:2379 | 43f60f474f47b514 |  3.4.10 |   20 kB |     false |      false |        40 |          9 |                  9 |        |
-| https://192.168.31.121:2379 | f9ff31e8ce518c24 |  3.4.10 |   20 kB |     false |      false |        40 |          9 |                  9 |        |
+| https://192.168.31.44:2379 | 3c0c4e2d324c0b39 |  3.4.10 |   20 kB |      true |      false |        40 |          9 |                  9 |        |
+| https://192.168.31.136:2379 | 43f60f474f47b514 |  3.4.10 |   20 kB |     false |      false |        40 |          9 |                  9 |        |
+| https://192.168.31.90:2379 | f9ff31e8ce518c24 |  3.4.10 |   20 kB |     false |      false |        40 |          9 |                  9 |        |
 +-----------------------------+------------------+---------+---------+-----------+------------+-----------+------------+--------------------+--------+
 ```
