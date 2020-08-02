@@ -864,3 +864,59 @@ TCP  10.254.0.1:443 rr
 ```
 
 可见所有通过 https 访问 K8S SVC kubernetes 的请求都转发到 kube-apiserver 节点的 6443 端口；
+
+## 5. 部署 calico 网络
+
+### (1) 安装 calico 网络插件
+
+```
+curl https://docs.projectcalico.org/manifests/calico.yaml -O
+```
+
+修改配置：
+
+```
+$ cp calico.yaml calico.yaml.orig
+$ diff calico.yaml.orig calico.yaml
+3579,3580c3579,3580
+<             - name: CALICO_IPV4POOL_CIDR
+<               value: "172.30.0.0/16"
+---
+>             # - name: CALICO_IPV4POOL_CIDR
+>             #   value: "192.168.0.0/16"
+3649c3649
+<             path: /opt/k8s/bin
+---
+>             path: /opt/cni/bin
+```
+
+运行 calico 插件：
+
+```
+$ kubectl apply -f calico.yaml
+```
+
+- calico 插架以 daemonset 方式运行在所有的 K8S 节点上。
+
+### (2) 查看 calico 运行状态
+
+```
+$ kubectl get pods -n kube-system -o wide
+NAME                                       READY   STATUS    RESTARTS   AGE     IP               NODE     NOMINATED NODE   READINESS GATES
+calico-kube-controllers-578894d4cd-5x4lv   1/1     Running   0          9m26s   172.30.219.65    master   <none>           <none>
+calico-node-ms772                          1/1     Running   0          9m26s   192.168.31.90    node2    <none>           <none>
+calico-node-rrz9d                          1/1     Running   0          9m26s   192.168.31.136   node1    <none>           <none>
+calico-node-s9rwn                          1/1     Running   0          9m26s   192.168.31.44    master   <none>           <none>
+```
+
+使用 crictl 命令查看 calico 使用的镜像：
+
+```
+$ crictl images
+IMAGE                                                     TAG                 IMAGE ID            SIZE
+docker.io/calico/cni                                      v3.15.1             2858353c1d25f       79.3MB
+docker.io/calico/kube-controllers                         v3.15.1             8ed9dbffe3501       22MB
+docker.io/calico/node                                     v3.15.1             1470783b14749       90.8MB
+docker.io/calico/pod2daemon-flexvol                       v3.15.1             a696ebcb2ac78       37.5MB
+registry.cn-beijing.aliyuncs.com/images_k8s/pause-amd64   3.1                 21a595adc69ca       326kB
+```
