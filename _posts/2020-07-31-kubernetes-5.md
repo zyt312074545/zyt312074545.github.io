@@ -522,6 +522,9 @@ Kubernetes master is running at https://192.168.31.44:6443
 
 To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 
+$ curl -s --cacert /etc/kubernetes/cert/ca.pem --cert /etc/kubernetes/cert/kubernetes.pem --key /etc/kubernetes/cert/kubernetes-key.pem https://192.168.31.44:6443/healthz
+OK
+
 $ kubectl get all --all-namespaces
 NAMESPACE   NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
 default     service/kubernetes   ClusterIP   10.254.0.1   <none>        443/TCP   7m57s
@@ -544,3 +547,470 @@ tcp        0      0 192.168.31.44:6443     0.0.0.0:*               LISTEN      1
 
 - 6443: 接收 https 请求的安全端口，对所有请求做认证和授权；
 - 由于关闭了非安全端口，故没有监听 8080；
+
+## 3. 部署高可用 kube-controller-manager 集群
+
+### (1) 创建 kube-controller-manager 证书和私钥
+
+```
+cat > kube-controller-manager-csr.json <<EOF
+{
+    "CN": "system:kube-controller-manager",
+    "key": {
+        "algo": "rsa",
+        "size": 2048
+    },
+    "hosts": [
+      "127.0.0.1",
+      "192.168.31.44",
+      "192.168.31.136",
+      "192.168.31.90"
+    ],
+    "names": [
+      {
+        "C": "CN",
+        "ST": "BeiJing",
+        "L": "BeiJing",
+        "O": "system:kube-controller-manager",
+        "OU": "opsnull"
+      }
+    ]
+}
+EOF
+```
+
+生成证书和私钥：
+
+```
+cfssl gencert -ca=/etc/kubernetes/cert/ca.pem \
+  -ca-key=/etc/kubernetes/cert/ca-key.pem \
+  -config=/etc/kubernetes/cert/ca-config.json \
+  -profile=kubernetes kube-controller-manager-csr.json | cfssljson -bare kube-controller-manager
+```
+
+将生成的证书和私钥分发到所有节点：
+
+```
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    scp kube-controller-manager* root@${node_ip}:/etc/kubernetes/cert/
+  done
+```
+
+### (2) 创建和分发 kubeconfig 文件
+
+```
+kubectl config set-cluster kubernetes \
+  --certificate-authority=/etc/kubernetes/cert/ca.pem \
+  --embed-certs=true \
+  --server="https://##NODE_IP##:6443" \
+  --kubeconfig=kube-controller-manager.kubeconfig
+
+kubectl config set-credentials system:kube-controller-manager \
+  --client-certificate=/etc/kubernetes/cert/kube-controller-manager.pem \
+  --client-key=/etc/kubernetes/cert/kube-controller-manager-key.pem \
+  --embed-certs=true \
+  --kubeconfig=kube-controller-manager.kubeconfig
+
+kubectl config set-context system:kube-controller-manager \
+  --cluster=kubernetes \
+  --user=system:kube-controller-manager \
+  --kubeconfig=kube-controller-manager.kubeconfig
+
+kubectl config use-context system:kube-controller-manager --kubeconfig=kube-controller-manager.kubeconfig
+```
+
+### (3) 分发 kubeconfig 到所有节点：
+
+```
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    sed -e "s/##NODE_IP##/${node_ip}/" kube-controller-manager.kubeconfig > kube-controller-manager-${node_ip}.kubeconfig
+    scp kube-controller-manager-${node_ip}.kubeconfig root@${node_ip}:/etc/kubernetes/kube-controller-manager.kubeconfig
+  done
+```
+
+### (4) 创建 kube-controller-manager systemd unit 模板文件
+
+```
+cat > kube-controller-manager.service.template <<EOF
+[Unit]
+Description=Kubernetes Controller Manager
+Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+
+[Service]
+WorkingDirectory=${K8S_DIR}/kube-controller-manager
+ExecStart=/opt/k8s/bin/kube-controller-manager \\
+  --profiling \\
+  --cluster-name=kubernetes \\
+  --controllers=*,bootstrapsigner,tokencleaner \\
+  --kube-api-qps=1000 \\
+  --kube-api-burst=2000 \\
+  --leader-elect \\
+  --use-service-account-credentials\\
+  --concurrent-service-syncs=2 \\
+  --bind-address=##NODE_IP## \\
+  --tls-cert-file=/etc/kubernetes/cert/kube-controller-manager.pem \\
+  --tls-private-key-file=/etc/kubernetes/cert/kube-controller-manager-key.pem \\
+  --authentication-kubeconfig=/etc/kubernetes/kube-controller-manager.kubeconfig \\
+  --client-ca-file=/etc/kubernetes/cert/ca.pem \\
+  --requestheader-allowed-names="aggregator" \\
+  --requestheader-client-ca-file=/etc/kubernetes/cert/ca.pem \\
+  --requestheader-extra-headers-prefix="X-Remote-Extra-" \\
+  --requestheader-group-headers=X-Remote-Group \\
+  --requestheader-username-headers=X-Remote-User \\
+  --authorization-kubeconfig=/etc/kubernetes/kube-controller-manager.kubeconfig \\
+  --cluster-signing-cert-file=/etc/kubernetes/cert/ca.pem \\
+  --cluster-signing-key-file=/etc/kubernetes/cert/ca-key.pem \\
+  --experimental-cluster-signing-duration=876000h \\
+  --horizontal-pod-autoscaler-sync-period=10s \\
+  --concurrent-deployment-syncs=10 \\
+  --concurrent-gc-syncs=30 \\
+  --node-cidr-mask-size=24 \\
+  --service-cluster-ip-range=${SERVICE_CIDR} \\
+  --pod-eviction-timeout=6m \\
+  --terminated-pod-gc-threshold=10000 \\
+  --root-ca-file=/etc/kubernetes/cert/ca.pem \\
+  --service-account-private-key-file=/etc/kubernetes/cert/ca-key.pem \\
+  --kubeconfig=/etc/kubernetes/kube-controller-manager.kubeconfig \\
+  --logtostderr=true \\
+  --v=2
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+### (5) 为各节点创建和分发 kube-controller-mananger systemd unit 文件
+
+```
+# 替换
+for (( i=0; i < 3; i++ ))
+  do
+    sed -e "s/##NODE_NAME##/${NODE_NAMES[i]}/" -e "s/##NODE_IP##/${NODE_IPS[i]}/" kube-controller-manager.service.template > kube-controller-manager-${NODE_IPS[i]}.service 
+  done
+
+# 分发
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    scp kube-controller-manager-${node_ip}.service root@${node_ip}:/etc/systemd/system/kube-controller-manager.service
+  done
+```
+
+### (6) 启动 kube-controller-manager 服务
+
+```
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    ssh root@${node_ip} "mkdir -p ${K8S_DIR}/kube-controller-manager"
+    ssh root@${node_ip} "systemctl daemon-reload && systemctl enable kube-controller-manager && systemctl restart kube-controller-manager"
+  done
+```
+
+### (7) 检查服务运行状态
+
+```
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    ssh root@${node_ip} "systemctl status kube-controller-manager|grep Active"
+  done
+
+$ sudo netstat -lnpt | grep kube-controlle
+tcp        0      0 192.168.31.44:10257     0.0.0.0:*               LISTEN      8832/kube-controlle 
+tcp6       0      0 :::10252                :::*                    LISTEN      8832/kube-controlle
+
+# 10257 端口用于存活性检查
+$ curl -s --cacert /etc/kubernetes/cert/ca.pem --cert /etc/kubernetes/cert/kube-controller-manager.pem --key /etc/kubernetes/cert/kube-controller-manager-key.pem https://192.168.31.44:10257/healthz
+# 10252 用于与 apiserver 连接
+```
+
+### (8) 查看输出的 metrics
+
+```
+$ curl http://192.168.31.44:10252/metrics | head
+# TYPE apiserver_audit_event_total counter
+apiserver_audit_event_total 0
+# HELP apiserver_audit_requests_rejected_total [ALPHA] Counter of apiserver requests rejected due to an error in audit logging backend.
+# TYPE apiserver_audit_requests_rejected_total counter
+apiserver_audit_requests_rejected_total 0
+# HELP apiserver_client_certificate_expiration_seconds [ALPHA] Distribution of the remaining lifetime on the certificate used to authenticate a request.
+# TYPE apiserver_client_certificate_expiration_seconds histogram
+apiserver_client_certificate_expiration_seconds_bucket{le="0"} 0
+apiserver_client_certificate_expiration_seconds_bucket{le="1800"} 0
+```
+
+### (9) 查看当前的 leader
+
+```
+$ kubectl get endpoints kube-controller-manager --namespace=kube-system  -o yaml
+apiVersion: v1
+kind: Endpoints
+metadata:
+  annotations:
+    control-plane.alpha.kubernetes.io/leader: '{"holderIdentity":"master_3f327dd8-30f6-45a9-bed9-beb40272ec6e","leaseDurationSeconds":15,"acquireTime":"2020-08-02T03:41:57Z","renewTime":"2020-08-02T03:50:06Z","leaderTransitions":0}'
+  creationTimestamp: "2020-08-02T03:41:57Z"
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .: {}
+          f:control-plane.alpha.kubernetes.io/leader: {}
+    manager: kube-controller-manager
+    operation: Update
+    time: "2020-08-02T03:50:06Z"
+  name: kube-controller-manager
+  namespace: kube-system
+  resourceVersion: "13471"
+  selfLink: /api/v1/namespaces/kube-system/endpoints/kube-controller-manager
+  uid: dac90154-68b7-4d3e-84fc-cdf32e9e3b75
+
+# leader 为 master
+```
+
+## 4. 部署高可用 kube-scheduler 集群
+
+### (1) 创建 kube-scheduler 证书和私钥
+
+```
+cat > kube-scheduler-csr.json <<EOF
+{
+    "CN": "system:kube-scheduler",
+    "hosts": [
+      "127.0.0.1",
+      "192.168.31.44",
+      "192.168.31.136",
+      "192.168.31.90"
+    ],
+    "key": {
+        "algo": "rsa",
+        "size": 2048
+    },
+    "names": [
+      {
+        "C": "CN",
+        "ST": "BeiJing",
+        "L": "BeiJing",
+        "O": "system:kube-scheduler",
+        "OU": "opsnull"
+      }
+    ]
+}
+EOF
+```
+
+生成证书和私钥：
+
+```
+cfssl gencert -ca=/etc/kubernetes/cert/ca.pem \
+  -ca-key=/etc/kubernetes/cert/ca-key.pem \
+  -config=/etc/kubernetes/cert/ca-config.json \
+  -profile=kubernetes kube-scheduler-csr.json | cfssljson -bare kube-scheduler
+```
+
+分发：
+
+```
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    scp kube-scheduler* root@${node_ip}:/etc/kubernetes/cert/
+  done
+```
+
+### (2) 创建和分发 kubeconfig 文件
+
+```
+kubectl config set-cluster kubernetes \
+  --certificate-authority=/etc/kubernetes/cert/ca.pem \
+  --embed-certs=true \
+  --server="https://##NODE_IP##:6443" \
+  --kubeconfig=kube-scheduler.kubeconfig
+
+kubectl config set-credentials system:kube-scheduler \
+  --client-certificate=/etc/kubernetes/cert/kube-scheduler.pem \
+  --client-key=/etc/kubernetes/cert/kube-scheduler-key.pem \
+  --embed-certs=true \
+  --kubeconfig=kube-scheduler.kubeconfig
+
+kubectl config set-context system:kube-scheduler \
+  --cluster=kubernetes \
+  --user=system:kube-scheduler \
+  --kubeconfig=kube-scheduler.kubeconfig
+
+kubectl config use-context system:kube-scheduler --kubeconfig=kube-scheduler.kubeconfig
+```
+
+分发：
+
+```
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    sed -e "s/##NODE_IP##/${node_ip}/" kube-scheduler.kubeconfig > kube-scheduler-${node_ip}.kubeconfig
+    scp kube-scheduler-${node_ip}.kubeconfig root@${node_ip}:/etc/kubernetes/kube-scheduler.kubeconfig
+  done
+```
+
+### (3) 创建 kube-scheduler 配置文件
+
+```
+cat >kube-scheduler.yaml.template <<EOF
+apiVersion: kubescheduler.config.k8s.io/v1alpha1
+kind: KubeSchedulerConfiguration
+bindTimeoutSeconds: 600
+clientConnection:
+  burst: 200
+  kubeconfig: "/etc/kubernetes/kube-scheduler.kubeconfig"
+  qps: 100
+enableContentionProfiling: false
+enableProfiling: true
+hardPodAffinitySymmetricWeight: 1
+healthzBindAddress: 127.0.0.1:10251
+leaderElection:
+  leaderElect: true
+metricsBindAddress: 127.0.0.1:10251
+EOF
+```
+
+替换模板和分发：
+
+```
+for (( i=0; i < 3; i++ ))
+  do
+    sed -e "s/##NODE_NAME##/${NODE_NAMES[i]}/" -e "s/##NODE_IP##/${NODE_IPS[i]}/" kube-scheduler.yaml.template > kube-scheduler-${NODE_IPS[i]}.yaml
+  done
+
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    scp kube-scheduler-${node_ip}.yaml root@${node_ip}:/etc/kubernetes/kube-scheduler.yaml
+  done
+```
+
+### (4) 创建 kube-scheduler systemd unit 模板文件
+
+```
+cat > kube-scheduler.service.template <<EOF
+[Unit]
+Description=Kubernetes Scheduler
+Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+
+[Service]
+WorkingDirectory=/data/k8s/k8s/kube-scheduler
+ExecStart=/opt/k8s/bin/kube-scheduler \
+  --config=/etc/kubernetes/kube-scheduler.yaml \
+  --tls-cert-file=/etc/kubernetes/cert/kube-scheduler.pem \
+  --tls-private-key-file=/etc/kubernetes/cert/kube-scheduler-key.pem \
+  --authentication-kubeconfig=/etc/kubernetes/kube-scheduler.kubeconfig \
+  --client-ca-file=/etc/kubernetes/cert/ca.pem \
+  --requestheader-allowed-names="" \
+  --requestheader-client-ca-file=/etc/kubernetes/cert/ca.pem \
+  --requestheader-extra-headers-prefix="X-Remote-Extra-" \
+  --requestheader-group-headers=X-Remote-Group \
+  --requestheader-username-headers=X-Remote-User \
+  --authorization-kubeconfig=/etc/kubernetes/kube-scheduler.kubeconfig \
+  --logtostderr=true \
+  --v=2
+Restart=always
+RestartSec=5
+StartLimitInterval=0
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+### (5) 为各节点创建和分发 kube-scheduler systemd unit 文件
+
+```
+for (( i=0; i < 3; i++ ))
+  do
+    sed -e "s/##NODE_NAME##/${NODE_NAMES[i]}/" -e "s/##NODE_IP##/${NODE_IPS[i]}/" kube-scheduler.service.template > kube-scheduler-${NODE_IPS[i]}.service 
+  done
+
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    scp kube-scheduler-${node_ip}.service root@${node_ip}:/etc/systemd/system/kube-scheduler.service
+  done
+```
+
+### (6) 启动 kube-scheduler 服务
+
+```
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    ssh root@${node_ip} "mkdir -p ${K8S_DIR}/kube-scheduler"
+    ssh root@${node_ip} "systemctl daemon-reload && systemctl enable kube-scheduler && systemctl restart kube-scheduler"
+  done
+```
+
+### (7) 检查服务运行状态
+
+```
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    ssh root@${node_ip} "systemctl status kube-scheduler|grep Active"
+  done
+```
+
+### (8) 查看输出的 metrics
+
+```
+$ netstat -lnp | grep schedu
+tcp        0      0 127.0.0.1:10251         0.0.0.0:*               LISTEN      16747/kube-schedule 
+tcp6       0      0 :::10259                :::*                    LISTEN      16747/kube-schedule 
+
+$ curl http://127.0.0.1:10251/metrics |head
+# HELP apiserver_audit_event_total [ALPHA] Counter of audit events generated and sent to the audit backend.
+# TYPE apiserver_audit_event_total counter
+apiserver_audit_event_total 0
+# HELP apiserver_audit_requests_rejected_total [ALPHA] Counter of apiserver requests rejected due to an error in audit logging backend.
+# TYPE apiserver_audit_requests_rejected_total counter
+apiserver_audit_requests_rejected_total 0
+# HELP apiserver_client_certificate_expiration_seconds [ALPHA] Distribution of the remaining lifetime on the certificate used to authenticate a request.
+# TYPE apiserver_client_certificate_expiration_seconds histogram
+apiserver_client_certificate_expiration_seconds_bucket{le="0"} 0
+apiserver_client_certificate_expiration_seconds_bucket{le="1800"} 0
+```
+
+### (9) 查看当前的 leader
+
+```
+$ kubectl get endpoints kube-scheduler --namespace=kube-system  -o yaml
+apiVersion: v1
+kind: Endpoints
+metadata:
+  annotations:
+    control-plane.alpha.kubernetes.io/leader: '{"holderIdentity":"master_ebe08c4d-5d60-4aec-bd45-b75eb3789c41","leaseDurationSeconds":15,"acquireTime":"2020-08-02T09:34:37Z","renewTime":"2020-08-02T09:42:21Z","leaderTransitions":6}'
+  creationTimestamp: "2020-08-02T08:46:18Z"
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .: {}
+          f:control-plane.alpha.kubernetes.io/leader: {}
+    manager: kube-scheduler
+    operation: Update
+    time: "2020-08-02T09:42:21Z"
+  name: kube-scheduler
+  namespace: kube-system
+  resourceVersion: "33022"
+  selfLink: /api/v1/namespaces/kube-system/endpoints/kube-scheduler
+  uid: c36c90f7-358a-4c07-9adb-9db6848a0550
+
+# leader 为 master
+```
