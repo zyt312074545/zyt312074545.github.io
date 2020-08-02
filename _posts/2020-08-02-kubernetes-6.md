@@ -649,3 +649,218 @@ cadvisor 是内嵌在 kubelet 二进制中的，统计所在节点各容器的�
 
 - kubelet.config.json 设置 authentication.anonymous.enabled 为 false，不允许匿名证书访问 10250 的 https 服务；
 - 生成证书 `openssl pkcs12 -export -out admin.pfx -inkey /opt/k8s/work/admin-key.pem -in /opt/k8s/work/admin.pem -certfile /etc/kubernetes/cert/ca.pem`，然后参考[浏览器导入证书](https://support.globalsign.com/digital-certificates/digital-certificate-installation/install-pkcs12-file-linux-ubuntu-using-chrome)导入相关证书，然后访问上面的 10250 端口；
+
+## 4. 部署 kube-proxy 组件
+
+### (1) 创建 kube-proxy 证书
+
+```
+cat > kube-proxy-csr.json <<EOF
+{
+  "CN": "system:kube-proxy",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "CN",
+      "ST": "BeiJing",
+      "L": "BeiJing",
+      "O": "k8s",
+      "OU": "opsnull"
+    }
+  ]
+}
+EOF
+```
+
+生成证书和私钥：
+
+```
+cfssl gencert -ca=/etc/kubernetes/cert/ca.pem \
+  -ca-key=/etc/kubernetes/cert/ca-key.pem \
+  -config=/etc/kubernetes/cert/ca-config.json \
+  -profile=kubernetes  kube-proxy-csr.json | cfssljson -bare kube-proxy
+```
+
+分发
+
+```
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    scp kube-proxy* root@${node_ip}:/etc/kubernetes/cert/
+  done
+```
+
+### (2) 创建和分发 kubeconfig 文件
+
+```
+kubectl config set-cluster kubernetes \
+  --certificate-authority=/etc/kubernetes/cert/ca.pem \
+  --embed-certs=true \
+  --server=${KUBE_APISERVER} \
+  --kubeconfig=kube-proxy.kubeconfig
+
+kubectl config set-credentials kube-proxy \
+  --client-certificate=/etc/kubernetes/cert/kube-proxy.pem \
+  --client-key=/etc/kubernetes/cert/kube-proxy-key.pem \
+  --embed-certs=true \
+  --kubeconfig=kube-proxy.kubeconfig
+
+kubectl config set-context default \
+  --cluster=kubernetes \
+  --user=kube-proxy \
+  --kubeconfig=kube-proxy.kubeconfig
+
+kubectl config use-context default --kubeconfig=kube-proxy.kubeconfig
+```
+
+分发 kubeconfig 文件：
+
+```
+for node_name in ${NODE_NAMES[@]}
+  do
+    echo ">>> ${node_name}"
+    scp kube-proxy.kubeconfig root@${node_name}:/etc/kubernetes/
+  done
+```
+
+### (3) 创建 kube-proxy 配置文件
+
+```
+cat > kube-proxy-config.yaml.template <<EOF
+kind: KubeProxyConfiguration
+apiVersion: kubeproxy.config.k8s.io/v1alpha1
+clientConnection:
+  burst: 200
+  kubeconfig: "/etc/kubernetes/kube-proxy.kubeconfig"
+  qps: 100
+bindAddress: ##NODE_IP##
+healthzBindAddress: ##NODE_IP##:10256
+metricsBindAddress: ##NODE_IP##:10249
+enableProfiling: true
+clusterCIDR: ${CLUSTER_CIDR}
+hostnameOverride: ##NODE_NAME##
+mode: "ipvs"
+portRange: ""
+iptables:
+  masqueradeAll: false
+ipvs:
+  scheduler: rr
+  excludeCIDRs: []
+EOF
+```
+
+为各节点创建和分发 kube-proxy 配置文件：
+
+```
+for (( i=0; i < 3; i++ ))
+  do 
+    echo ">>> ${NODE_NAMES[i]}"
+    sed -e "s/##NODE_NAME##/${NODE_NAMES[i]}/" -e "s/##NODE_IP##/${NODE_IPS[i]}/" kube-proxy-config.yaml.template > kube-proxy-config-${NODE_NAMES[i]}.yaml.template
+    scp kube-proxy-config-${NODE_NAMES[i]}.yaml.template root@${NODE_NAMES[i]}:/etc/kubernetes/kube-proxy-config.yaml
+  done
+```
+
+### (4) 创建和分发 kube-proxy systemd unit 文件
+
+```
+cat > kube-proxy.service <<EOF
+[Unit]
+Description=Kubernetes Kube-Proxy Server
+Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+After=network.target
+
+[Service]
+WorkingDirectory=${K8S_DIR}/kube-proxy
+ExecStart=/opt/k8s/bin/kube-proxy \\
+  --config=/etc/kubernetes/kube-proxy-config.yaml \\
+  --logtostderr=true \\
+  --v=2
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+for node_name in ${NODE_NAMES[@]}
+  do 
+    echo ">>> ${node_name}"
+    scp kube-proxy.service root@${node_name}:/etc/systemd/system/
+  done
+```
+
+### (5) 启动 kube-proxy 服务
+
+```
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    ssh root@${node_ip} "mkdir -p ${K8S_DIR}/kube-proxy"
+    ssh root@${node_ip} "modprobe ip_vs_rr"
+    ssh root@${node_ip} "systemctl daemon-reload && systemctl enable kube-proxy && systemctl restart kube-proxy"
+  done
+```
+
+### (6) 检查启动结果
+
+```
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    ssh root@${node_ip} "systemctl status kube-proxy | grep Active"
+  done
+```
+
+### (7) 查看监听端口
+
+```
+$ netstat -lnpt|grep kube-proxy
+tcp        0      0 192.168.31.136:10249    0.0.0.0:*               LISTEN      12646/kube-proxy    
+tcp        0      0 192.168.31.136:10256    0.0.0.0:*               LISTEN      12646/kube-proxy
+```
+
+- 10249：http prometheus metrics port;
+- 10256：http healthz port;
+
+### (8) 查看 ipvs 路由规则
+
+```
+for node_ip in ${NODE_IPS[@]}
+  do
+    echo ">>> ${node_ip}"
+    ssh root@${node_ip} "/sbin/ipvsadm -ln"
+  done
+
+# 输出信息
+>>> 192.168.31.44
+IP Virtual Server version 1.2.1 (size=4096)
+Prot LocalAddress:Port Scheduler Flags
+  -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
+TCP  10.254.0.1:443 rr
+  -> 192.168.31.44:6443           Masq    1      0          0         
+  -> 192.168.31.90:6443           Masq    1      0          0         
+  -> 192.168.31.136:6443          Masq    1      0          0         
+>>> 192.168.31.136
+IP Virtual Server version 1.2.1 (size=4096)
+Prot LocalAddress:Port Scheduler Flags
+  -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
+TCP  10.254.0.1:443 rr
+  -> 192.168.31.44:6443           Masq    1      0          0         
+  -> 192.168.31.90:6443           Masq    1      0          0         
+  -> 192.168.31.136:6443          Masq    1      0          0         
+>>> 192.168.31.90
+IP Virtual Server version 1.2.1 (size=4096)
+Prot LocalAddress:Port Scheduler Flags
+  -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
+TCP  10.254.0.1:443 rr
+  -> 192.168.31.44:6443           Masq    1      0          0         
+  -> 192.168.31.90:6443           Masq    1      0          0         
+  -> 192.168.31.136:6443          Masq    1      0          0
+```
+
+可见所有通过 https 访问 K8S SVC kubernetes 的请求都转发到 kube-apiserver 节点的 6443 端口；
