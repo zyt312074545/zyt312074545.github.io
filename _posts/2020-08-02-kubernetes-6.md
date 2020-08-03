@@ -366,7 +366,7 @@ hairpinMode: promiscuous-bridge
 maxPods: 220
 podCIDR: "${CLUSTER_CIDR}"
 podPidsLimit: -1
-resolvConf: /etc/resolv.conf
+resolvConf: /run/systemd/resolve/resolv.conf
 maxOpenFiles: 1000000
 kubeAPIQPS: 1000
 kubeAPIBurst: 2000
