@@ -237,3 +237,91 @@ kubectl config set-context default \
 # 设置默认上下文
 kubectl config use-context default --kubeconfig=dashboard.kubeconfig
 ```
+
+# 3. 部署 kube-prometheus
+
+### (1) 下载和安装
+
+```
+git clone https://github.com/coreos/kube-prometheus.git
+cd kube-prometheus/
+kubectl apply -f manifests/setup # 安装 prometheus-operator
+kubectl apply -f manifests/ # 安装 promethes metric adapter
+```
+
+## (2) 查看运行状态
+
+```
+$ kubectl get pods -n monitoring
+NAME                                   READY   STATUS    RESTARTS   AGE
+alertmanager-main-0                    2/2     Running   0          19h
+alertmanager-main-1                    2/2     Running   0          19h
+alertmanager-main-2                    2/2     Running   0          19h
+grafana-67dfc5f687-c2vj6               1/1     Running   0          19h
+kube-state-metrics-69d4c7c69d-kwltw    3/3     Running   0          19h
+node-exporter-45dkh                    2/2     Running   0          19h
+node-exporter-67wvw                    2/2     Running   0          19h
+node-exporter-sxrxf                    2/2     Running   0          19h
+prometheus-adapter-66b855f564-qjlz9    1/1     Running   0          19h
+prometheus-k8s-0                       3/3     Running   0          19h
+prometheus-operator-57859b8b59-269r6   2/2     Running   0          19h
+
+$ kubectl top pods -n monitoring
+NAME                                   CPU(cores)   MEMORY(bytes)   
+alertmanager-main-0                    5m           12Mi            
+alertmanager-main-1                    4m           12Mi            
+alertmanager-main-2                    4m           12Mi            
+grafana-67dfc5f687-c2vj6               7m           16Mi            
+kube-state-metrics-69d4c7c69d-kwltw    0m           18Mi            
+node-exporter-45dkh                    1m           15Mi            
+node-exporter-67wvw                    1m           14Mi            
+node-exporter-sxrxf                    2m           14Mi            
+prometheus-adapter-66b855f564-qjlz9    3m           12Mi            
+prometheus-k8s-0                       61m          185Mi           
+prometheus-operator-57859b8b59-269r6   1m           20Mi
+```
+
+## (3) 访问 Prometheus UI
+
+```
+$ kubectl port-forward --address 0.0.0.0 pod/prometheus-k8s-0 -n monitoring 9090:9090
+
+如果 chrome 打不开，可以尝试使用火狐浏览器。
+```
+
+## (4) 访问 Grafana UI
+
+```
+$ kubectl port-forward --address 0.0.0.0 svc/grafana -n monitoring 3000:3000 
+用 admin/admin 登录
+```
+
+# 4. 部署 EFK 插件
+
+## (1) 执行定义文件
+
+```
+$ cd /kubernetes/cluster/addons/fluentd-elasticsearch
+$ kubectl apply -f .
+```
+
+## (2) 检查执行情况
+
+```
+$ kubectl get all -n kube-system |grep -E 'elasticsearch|fluentd|kibana'
+pod/elasticsearch-logging-0                    1/1     Running   0          21m
+pod/fluentd-es-v2.8.0-8nlfv                    1/1     Running   0          21m
+pod/fluentd-es-v2.8.0-g9swv                    1/1     Running   0          21m
+pod/fluentd-es-v2.8.0-tvcf6                    1/1     Running   0          21m
+pod/kibana-logging-557d68bdcd-bbv7f            1/1     Running   0          2m38s
+service/elasticsearch-logging   NodePort    10.254.5.125   <none>        9200:32539/TCP                 21m
+service/kibana-logging          NodePort    10.254.76.64   <none>        5601:31372/TCP                 21m
+daemonset.apps/fluentd-es-v2.8.0   3         3         3       3            3           <none>                   21m
+deployment.apps/kibana-logging            1/1     1            1           2m38s
+replicaset.apps/kibana-logging-557d68bdcd            1         1         1       2m38s
+statefulset.apps/elasticsearch-logging   1/1     21m
+```
+
+## (3) 参考文章
+
+[Kubernetes安装EFK教程(非存储持久化方式部署)](http://shangdixinxi.com/detail-1333190.html)
